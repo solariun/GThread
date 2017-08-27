@@ -28,6 +28,8 @@
 		6705686F1F52818300A3ACD1 /* gthread.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = gthread.cpp; sourceTree = "<group>"; };
 		670568711F52818300A3ACD1 /* compile.sh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; path = compile.sh; sourceTree = "<group>"; };
 		670568871F53364600A3ACD1 /* Version */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = Version; sourceTree = "<group>"; };
+		670568881F53373E00A3ACD1 /* README */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = README; sourceTree = "<group>"; };
+		670568891F5338F100A3ACD1 /* LICENCE */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = LICENCE; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -44,6 +46,8 @@
 		6705685A1F52812700A3ACD1 = {
 			isa = PBXGroup;
 			children = (
+				670568891F5338F100A3ACD1 /* LICENCE */,
+				670568881F53373E00A3ACD1 /* README */,
 				670568871F53364600A3ACD1 /* Version */,
 				670568651F52812700A3ACD1 /* GThread */,
 				670568641F52812700A3ACD1 /* Products */,
