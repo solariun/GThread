@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		670568671F52812700A3ACD1 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 670568661F52812700A3ACD1 /* main.cpp */; };
+		670568721F52818300A3ACD1 /* gthread.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6705686F1F52818300A3ACD1 /* gthread.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -24,7 +24,9 @@
 
 /* Begin PBXFileReference section */
 		670568631F52812700A3ACD1 /* GThread */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = GThread; sourceTree = BUILT_PRODUCTS_DIR; };
-		670568661F52812700A3ACD1 /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
+		6705686E1F52818300A3ACD1 /* gthread.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = gthread.h; sourceTree = "<group>"; };
+		6705686F1F52818300A3ACD1 /* gthread.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = gthread.cpp; sourceTree = "<group>"; };
+		670568711F52818300A3ACD1 /* compile.sh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; path = compile.sh; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -57,9 +59,19 @@
 		670568651F52812700A3ACD1 /* GThread */ = {
 			isa = PBXGroup;
 			children = (
-				670568661F52812700A3ACD1 /* main.cpp */,
+				6705686D1F52815200A3ACD1 /* Source */,
 			);
 			path = GThread;
+			sourceTree = "<group>";
+		};
+		6705686D1F52815200A3ACD1 /* Source */ = {
+			isa = PBXGroup;
+			children = (
+				6705686E1F52818300A3ACD1 /* gthread.h */,
+				6705686F1F52818300A3ACD1 /* gthread.cpp */,
+				670568711F52818300A3ACD1 /* compile.sh */,
+			);
+			name = Source;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -120,7 +132,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				670568671F52812700A3ACD1 /* main.cpp in Sources */,
+				670568721F52818300A3ACD1 /* gthread.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
