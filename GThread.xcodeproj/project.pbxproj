@@ -27,6 +27,7 @@
 		6705686E1F52818300A3ACD1 /* gthread.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = gthread.h; sourceTree = "<group>"; };
 		6705686F1F52818300A3ACD1 /* gthread.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = gthread.cpp; sourceTree = "<group>"; };
 		670568711F52818300A3ACD1 /* compile.sh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; path = compile.sh; sourceTree = "<group>"; };
+		670568871F53364600A3ACD1 /* Version */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = Version; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -43,6 +44,7 @@
 		6705685A1F52812700A3ACD1 = {
 			isa = PBXGroup;
 			children = (
+				670568871F53364600A3ACD1 /* Version */,
 				670568651F52812700A3ACD1 /* GThread */,
 				670568641F52812700A3ACD1 /* Products */,
 			);
@@ -263,6 +265,7 @@
 				6705686C1F52812700A3ACD1 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
