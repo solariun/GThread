@@ -33,16 +33,16 @@ SOFTWARE.
 
 Intial Version
 
-  - User thread based on context switch of unix / linux / osx
+  - User thread based on context switch of unix / linux / osx (OK)
   - Inter communication between threads made ease
   - Semaphore
   - Threads with attributes on initialization.
   - And state of the art thread schedules with proprietary algorithm
-  - C++11 compliance
-  - Small footprint memory
-  - No  limitations for ammount of threads
-  - Capable of useing various thread container
-  - Kernel is the main thread container, but others cam be created and used together.
-  - Safe Sleep and SELECT (for non blocking i/o use and error handler)
+  - C++11 compliance (OK)
+  - Small footprint memory (OK)
+  - No  limitations for ammount of threads (OK)
+  - Capable of useing various thread container (OK)
+  - Kernel is the main thread container, but others can be created and used together. (OK)
+  - Safe Sleep and SELECT (for non blocking i/o use and error handler) Sleep (OK) SELECT (TO BE DONE)
 
-  51% done till now
+  59% done till now

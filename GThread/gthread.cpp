@@ -138,7 +138,7 @@ void gthread::CreateThread(void (*pFunction)(), uint64_t nStack, uint16_t nPrior
 	
     getcontext(&thContext->uContext);
 
-    thContext->uContext.uc_stack.ss_sp = mmap(0, nStack, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE| MAP_ANON, -1, 0);
+    thContext->uContext.uc_stack.ss_sp = malloc(nStack); //mmap(0, nStack, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE| MAP_ANON, -1, 0);
     
 	thContext->uContext.uc_stack.ss_size = nStack;
     thContext->uContext.uc_stack.ss_flags = 0;
