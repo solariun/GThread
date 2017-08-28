@@ -36,6 +36,7 @@
 #include <stdio.h>
 
 
+
 #define KERNEL_CONTEXT 0;
 
 #define GTHREAD_STATUS_KERNEL	255
@@ -52,11 +53,11 @@
 
 
 /* 64bits length, be AWARE OF IT */
-#define INT_CEILING(x,y) ((uint64_t)1 + ((x - 1) / y))*y
+#define INT_CEILING(x,y) ((uint64_t)((1LL + ((x - 1LL) / y))*y))
 #define INT_LOWEST(x,y) (x<y ? x : y)
 #define INT_GREATEST(x,y) (x>y ? x : y)
 
-#define verify(x, y, z...) _verify(x,#x, __PRETTY_FUNCTION__, __FILE__, __LINE__, z)
+#define verify(x, y, z...) _verify(x,#x, __PRETTY_FUNCTION__, __FILE__, __LINE__, y,  z)
 
 static unsigned int nDefaultStackSize = 163841;
 
@@ -86,23 +87,30 @@ void gthread::sortPriorityDescendently(vector<thread*> &vec)
 
 
 
+
 gthread::gthread()
 {
 	printf ("Inicializando nano Kernel\n");
 
-    srand((uint)getTimeInNanoSec());
+    srand((uint)getTimeInMicroSec());
 }
 
 
 
-uint64_t gthread::getTimeInNanoSec (void)
+
+inline uint64_t as_microseconds(struct timespec* ts) {
+    return ts->tv_sec * (uint64_t)1000000L + ts->tv_nsec / 1000;
+}
+
+uint64_t gthread::getTimeInMicroSec (void)
 {
     struct timespec spec;
 
     clock_gettime(CLOCK_REALTIME, &spec);
 
-	return (uint64_t)((uint64_t) spec.tv_sec + (uint64_t) spec.tv_nsec);
+    return (as_microseconds(&spec));
 }
+
 
 
 
@@ -114,21 +122,24 @@ void gthread::CreateThread(void (*pFunction)(), uint16_t nPriority, const char* 
 
 
 
+
+
 void gthread::firstCallFunction (void (*pFunction)(), thread *pThread)
 {
 
 }
 
+
+
+
 void gthread::CreateThread(void (*pFunction)(), uint64_t nStack, uint16_t nPriority, const char* pstrName, uint nArgs, void** ppArgs)
 {
 	thread *thContext = new thread();
 	
-	uint8_t *ui8StackeData = new uint8_t (nStack);
-
-
     getcontext(&thContext->uContext);
 
-	thContext->uContext.uc_stack.ss_sp = ui8StackeData;
+    thContext->uContext.uc_stack.ss_sp = mmap(0, nStack, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE| MAP_ANON, -1, 0);
+    
 	thContext->uContext.uc_stack.ss_size = nStack;
     thContext->uContext.uc_stack.ss_flags = 0;
     thContext->uContext.uc_link = &threadKernel.uContext;
@@ -141,11 +152,7 @@ void gthread::CreateThread(void (*pFunction)(), uint64_t nStack, uint16_t nPrior
 
 	errno=0;
 
-
-	if (errno != 0)
-	{
-		fprintf (stderr, "ERROR, [%s] creating tread.\n", strerror(errno));
-	}
+    verify(errno == 0, "ERROR, [%s] creating tread.\n", strerror(errno));
 
     //printf ("[%s] Created thread [%s] nice: [%u] Status: [%u ticks]\n", __PRETTY_FUNCTION__, pstrName, nPriority, thContext->nThreadStatus);
 
@@ -157,6 +164,8 @@ void gthread::CreateThread(void (*pFunction)(), uint64_t nStack, uint16_t nPrior
 
 
 
+
+
 const char* gthread::getCurrentThreadName()
 {
     return pThreadWorking->pstrThreadName;
@@ -164,57 +173,72 @@ const char* gthread::getCurrentThreadName()
 
 
 
-useconds_t gthread::markNextRunningContexts(useconds_t nTick)
+
+#define GTHREAD_USLEEP2TICK(x) (x/GTHREAD_TICK_USEC)
+
+uint64_t gthread::markNextRunningContexts(uint64_t nTick)
 {
     //struct { uint64_t nValue; thread* pThread;} stCandidate = { 0, NULL };
 
-    useconds_t nLowest=-1;
+    uint64_t nLowest=-1;
+    uint64_t nCurrentTIme = 0;
+    uint64_t nTimeFactor=0;
 
     vector<thread*>::iterator it;
 
     for (it = vecThread.begin(); it != vecThread.end(); ++it)
     {
-        (*it)->nNextRunningTick = INT_CEILING(nTick, (*it)->nPriority);
-
-        //printf ("\tKernel: [%20s] Nice: [%4u]  Status: [%3u] NextBeta:[%u] Tick: [%u] SleepTime: [%u]\n", (*it)->pstrThreadName, (*it)->nPriority, (*it)->nThreadStatus, (*it)->nNextRunningTick, nTick, (*it)->nNextRunningTick - nTick);
+        nCurrentTIme = getTimeInMicroSec();
+        
+        nTimeFactor = (((*it)->nSleepETA > 0 && (*it)->nSleepETA > nCurrentTIme) ? (((uint64_t)(*it)->nSleepETA - nCurrentTIme) / GTHREAD_TICK_USEC) + 1 : 0) + (*it)->nPriority;
+        
+        (*it)->nNextRunningTick = INT_CEILING(nTick, nTimeFactor );
 
         nLowest = INT_LOWEST((*it)->nNextRunningTick, nLowest);
     }
 
-    //printf ("Kernel: The Closest tick is: [%u] sleep (%u)\n", nLowest, (nLowest - nTick));
+    //printf ("Kernel: The Closest tick is: [%llu] sleep (%lld)\n", nLowest, (nLowest - nTick));
 
     return nLowest;
 }
 
 
 
+
 void gthread::Start ()
 {
-    useconds_t nRunningETA;
+    uint64_t nRunningETA;
     vector<thread*>::iterator it;
     uint64_t nCiclo=1;
+    uint64_t nTime;
 
     while (true || (++nTick))
     {
-        if (nTick > (UINT16_MAX + GTHREAD_TICK_USEC)) { nTick= nTick - UINT16_MAX; nCiclo++; continue; }
+        if (nTick > ((uint64_t) 0xFFFFFFFFFFFF + GTHREAD_TICK_USEC)) { nTick= nTick - UINT16_MAX; nCiclo++; continue; }
 
         usleep ((useconds_t)((nRunningETA=markNextRunningContexts(nTick)) - nTick) * GTHREAD_TICK_USEC);
 
-        //printf ("\n\tKernel:   nTick: [%u] Next: [%u] diff: [%u]\n", nTick, nTick + (nRunningETA -nTick), nRunningETA -nTick);
-
         nTick += (nRunningETA -nTick);
-
+        
         for (it = vecThread.begin(); it != vecThread.end(); ++it)
         {
             if ((*it)->nNextRunningTick == nRunningETA)
             {
                 
-                if ((*it)->nThreadStatus == GTHREAD_STATUS_SLEEP)
+                 nTime = getTimeInMicroSec();
+                
+                //printf ("\n\tKernel:   nTick: [%u] Next: [%u] diff: [%u] -- Time: [%llu] -SLeep ETA: [%llu] diff: [%llu] \n", nTick, nTick + (nRunningETA -nTick), nRunningETA - nTick, nTime, (*it)->nSleepETA, (*it)->nSleepETA - nTime);
+                
+                
+                if ((*it)->nThreadStatus == GTHREAD_STATUS_SLEEP && (*it)->nSleepETA <= nTime)
                 {
+                    (*it)->nThreadStatus = GTHREAD_STATUS_RUNNING;
+                    (*it)->nSleepETA = 0;
                     
+                    //printf ("\n\t ELIPSED TIME: [%f] \n", (double) (nTime - (*it)->nStartTime) / 1000000);
                 }
-
-                if (((*it)->nThreadStatus == GTHREAD_STATUS_RUNNING || (*it)->nThreadStatus == GTHREAD_STATUS_INIT))
+                
+                if ( (((*it)->nThreadStatus == GTHREAD_STATUS_RUNNING || (*it)->nThreadStatus == GTHREAD_STATUS_INIT)) )
                 {
                     pThreadWorking = (*it);
 
@@ -240,15 +264,15 @@ void gthread::Start ()
 
 
 
-bool gthread::USleep(useconds_t nuTime)
+bool gthread::Microleep(uint64_t nuTime)
 {
-    verify(pThreadWorking == NULL, "Logic Error, it should have priviously been initilizaed. (%llu)\n", NULL);
+    verify(pThreadWorking != NULL, "Logic Error, it should have priviously been initilizaed. (%llu)\n", NULL);
 
-    printf ("\t->[%s] executing sleep.", pThreadWorking->pstrThreadName);
+    //printf ("\t->[%s] executing sleep.", pThreadWorking->pstrThreadName);
     
     pThreadWorking->nThreadStatus = GTHREAD_STATUS_SLEEP;
-    pThreadWorking->nSleepTime = nuTime;
-    pThreadWorking->nStartTime = getTimeInNanoSec();
+    pThreadWorking->nSleepETA = getTimeInMicroSec() + nuTime;
+    pThreadWorking->nStartTime = getTimeInMicroSec();
     
 
     swapcontext(&pThreadWorking->uContext, &threadKernel.uContext);
@@ -256,13 +280,15 @@ bool gthread::USleep(useconds_t nuTime)
     
     return true;
 }
+
+
 
 
 bool gthread::Continue()
 {
-    verify(pThreadWorking == NULL, "Logic Error, it should have priviously been initilizaed. (%llu)\n", NULL);
+    verify(pThreadWorking != NULL, "Logic Error, it should have priviously been initilizaed. (%llu)\n", Kernel.getCurrentTick());
     
-    printf ("\t->[%s] executing Switching.", pThreadWorking->pstrThreadName);
+    printf ("\t->[%s] executing Switching.\n\n", pThreadWorking->pstrThreadName);
     
     swapcontext(&pThreadWorking->uContext, &threadKernel.uContext);
     
@@ -271,7 +297,7 @@ bool gthread::Continue()
 
 
 
-const useconds_t gthread::getCurrentTick()
+const uint64_t gthread::getCurrentTick()
 {
     return nTick;
 }
@@ -291,18 +317,33 @@ void Function ()
 	while (Kernel.Continue())
 	{
         printf ("%s - Value: [%lu] Tick: [%u]\n", pstrThreadName, nValue++, Kernel.getCurrentTick());
-        usleep (1000);
+        Kernel.Microleep(500000LL);
 	}
 }
 
 
 
+void Function2 ()
+{
+    size_t nValue = 10; //(size_t) ppszValues[0];
+    
+    const char* pstrThreadName = Kernel.getCurrentThreadName ();
+    
+    while (Kernel.Continue())
+    {
+        printf ("%s - Value: [%lu] Tick: [%u]\n", pstrThreadName, nValue++, Kernel.getCurrentTick());
+    }
+}
+
+
 int main (int nArgs, char** ppszArgs)
 {
-    Kernel.CreateThread ((void (*)())Function, 100, "Thread 1", 0, (void**)20);
+    Kernel.CreateThread ((void (*)())Function, 100, "Thread 1", 0, NULL);
 
     Kernel.CreateThread ((void (*)())Function, 1000, "Thread 2", 0, (void**)20);
 
+    Kernel.CreateThread ((void (*)())Function2, 100, "Thread 3", 0, NULL);
+    
     Kernel.Start();
 
 	return 0;

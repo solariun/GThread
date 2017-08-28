@@ -33,6 +33,8 @@
  */
 
 #define _XOPEN_SOURCE 600
+#define _DARWIN_C_SOURCE 600
+
 
 #include <unistd.h>
 #include <stdio.h>
@@ -45,6 +47,8 @@
 #include <stdarg.h>
 #include <errno.h>
 #include <string.h>
+#include <sys/mman.h>
+
 
 #include <vector>
 
@@ -61,13 +65,13 @@ typedef struct
     ucontext_t 	uContext;
     uint8_t 	nThreadStatus;
     
-    useconds_t	nSleepTime;
     uint64_t    nStartTime;
+    uint64_t    nSleepETA;
 
     uint16_t	nPriority;
     const char* pstrThreadName;
 
-    useconds_t  nNextRunningTick;
+    uint64_t  nNextRunningTick;
     bool        boolToRun = false;
 } thread;
 
@@ -87,17 +91,17 @@ public:
 
     void Start ();
 
-    bool USleep(useconds_t nuTime);
+    bool Microleep(uint64_t nuTime);
 
     bool Continue();
     
-    const useconds_t getCurrentTick();
+    const uint64_t getCurrentTick();
     
 private:
 
     
 
-    useconds_t nTick = 41;
+    uint64_t nTick = 41;
 
 	vector<thread*> vecThread;
 
@@ -107,7 +111,7 @@ private:
 	
     thread *pThreadWorking = NULL;
 	
-    useconds_t markNextRunningContexts(useconds_t nTick);
+    uint64_t markNextRunningContexts(uint64_t nTick);
 
     void sortPriorityDescendently(vector<thread*> &vec);
 
@@ -116,8 +120,10 @@ private:
 
 protected:
 
-	uint64_t getTimeInNanoSec (void);
-
+	
+    uint64_t getTimeInMicroSec (void);
+    
+    
     void _verify(bool boolExpression, const char* pstrCode, const char* pstrFunction, const char* pstrFileName, const int nLineNumber, const char* pstrMessage, ...);
 } Kernel;
 
