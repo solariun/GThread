@@ -44,12 +44,18 @@
 #define GTHREAD_STATUS_NILL 	0 
 #define GTHREAD_STATUS_INIT		1
 #define GTHREAD_STATUS_RUNNING	2
+#define GTHREAD_STATUS_SELECT	5
 #define GTHREAD_STATUS_SLEEP	3
 #define GTHREAD_STATUS_HALT		4
 #define GTHREAD_STATUS_STOPPED	5
 
 
-#define GTHREAD_TICK_USEC   500
+#define GTHREAD_TICK_USEC       500
+
+#define GTHREAD_FDSET_READ      0
+#define GTHREAD_FDSET_WRITE     1
+#define GTHREAD_FDSET_ERROR     2
+
 
 
 /* 64bits length, be AWARE OF IT */
@@ -236,6 +242,38 @@ void gthread::Start ()
                     (*it)->nSleepETA = 0;
                     
                     //printf ("\n\t ELIPSED TIME: [%f] \n", (double) (nTime - (*it)->nStartTime) / 1000000);
+                    
+                    nTick++;
+                }else if ((*it)->nThreadStatus == GTHREAD_STATUS_SLEEP )
+                {
+                    if ((*it)->nSleepETA <= nTime)
+                    {
+                        (*it)->nThreadStatus = GTHREAD_STATUS_RUNNING;
+                        (*it)->select_ret    = -1;
+                    }
+                    else
+                    {
+                        timeval tm;
+                        
+                        tm.tv_sec = 0;
+                        tm.tv_usec = GTHREAD_TICK_USEC;
+                        
+                        int nRet = select ((*it)->nFD,
+                                            (*it)->fdSetList [GTHREAD_FDSET_READ],
+                                            (*it)->fdSetList [GTHREAD_FDSET_WRITE],
+                                            (*it)->fdSetList [GTHREAD_FDSET_ERROR],
+                                           &tm);
+                        
+                        (*it)->Errorno = errno;
+                        
+                        if (nRet > 0)
+                        {
+                            (*it)->nThreadStatus = GTHREAD_STATUS_RUNNING;
+                            (*it)->select_ret    = nRet;
+                        }
+                        
+                        nTick++;
+                    }
                 }
                 
                 if ( (((*it)->nThreadStatus == GTHREAD_STATUS_RUNNING || (*it)->nThreadStatus == GTHREAD_STATUS_INIT)) )
@@ -262,6 +300,35 @@ void gthread::Start ()
 
 
 
+int gthread::select (int nfds, fd_set *readfds, fd_set *writefds, fd_set *errorfds, struct timeval *timeout)
+{
+    verify(pThreadWorking != NULL, "Logic Error, it should have priviously been initilizaed. (%llu)\n", NULL);
+    
+    verify (timeout != NULL, "timeval not defined.", NULL);
+    
+    pThreadWorking->fdSetList [GTHREAD_FDSET_READ]  = readfds;
+    pThreadWorking->fdSetList [GTHREAD_FDSET_WRITE] = writefds;
+    pThreadWorking->fdSetList [GTHREAD_FDSET_ERROR]  = errorfds;
+    
+    pThreadWorking->nThreadStatus = GTHREAD_STATUS_SELECT;
+    
+    Continue();
+    
+    if (pThreadWorking->select_ret < 0)
+    {
+        errno = pThreadWorking->Errorno;
+        return pThreadWorking->select_ret;
+    }
+    else
+    {
+        errno = 0;
+    }
+    
+    return pThreadWorking->select_ret;
+    
+}
+
+
 
 
 bool gthread::Microleep(uint64_t nuTime)
@@ -273,7 +340,7 @@ bool gthread::Microleep(uint64_t nuTime)
     pThreadWorking->nThreadStatus = GTHREAD_STATUS_SLEEP;
     pThreadWorking->nSleepETA = getTimeInMicroSec() + nuTime;
     pThreadWorking->nStartTime = getTimeInMicroSec();
-    
+
 
     swapcontext(&pThreadWorking->uContext, &threadKernel.uContext);
 
@@ -316,7 +383,7 @@ void Function ()
     
 	while (Kernel.Continue())
 	{
-        printf ("%s - Value: [%lu] Tick: [%u]\n", pstrThreadName, nValue++, Kernel.getCurrentTick());
+        printf ("%s - Value: [%lu] Tick: [%llu]\n", pstrThreadName, nValue++, Kernel.getCurrentTick());
         Kernel.Microleep(500000LL);
 	}
 }
@@ -331,7 +398,7 @@ void Function2 ()
     
     while (Kernel.Continue())
     {
-        printf ("%s - Value: [%lu] Tick: [%u]\n", pstrThreadName, nValue++, Kernel.getCurrentTick());
+        printf ("%s - Value: [%lu] Tick: [%llu]\n", pstrThreadName, nValue++, Kernel.getCurrentTick());
     }
 }
 

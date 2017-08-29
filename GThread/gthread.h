@@ -68,10 +68,16 @@ typedef struct
     uint64_t    nStartTime;
     uint64_t    nSleepETA;
 
+    /* select */
+    int          nFD;
+    fd_set*      fdSetList [3];
+    int          select_ret;
+    int          Errorno;
+    
     uint16_t	nPriority;
     const char* pstrThreadName;
 
-    uint64_t  nNextRunningTick;
+    uint64_t    nNextRunningTick;
     bool        boolToRun = false;
 } thread;
 
@@ -96,6 +102,9 @@ public:
     bool Continue();
     
     const uint64_t getCurrentTick();
+    
+    int select (int nfds, fd_set *readfds, fd_set *writefds,
+         fd_set *errorfds, struct timeval *timeout);
     
 private:
 
