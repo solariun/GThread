@@ -96,7 +96,7 @@ void gthread::printThread (const char* pszName, thread* pThread)
     printf ("\tReturn  : 0x%X\n", pThread->uContext.uc_link);
     printf ("\tStack   : 0x%X Size: [%u]\n", pThread->uContext.uc_stack.ss_sp, pThread->uContext.uc_stack.ss_size);
     printf ("\n");
-    printf ("\tName    : 0x%X\n", pThread->pstrThreadName);
+    printf ("\tName    : [%s]\n", pThread->pstrThreadName);
     printf ("\tStatus  : %u\n", pThread->nThreadStatus);
     printf ("\tETASleep: %llu\n", pThread->nSleepETA);
     printf ("\tPriority: %u\n", pThread->nPriority);
@@ -338,7 +338,11 @@ int __volatile__ gthread::select (int nfds, fd_set *readfds, fd_set *writefds, f
     
     pThreadWorking->nSleepETA = getTimeInMicroSec() + timeval2microseconds((*timeout));
     
-    Continue();
+    printThread ("Continue - pThreadWorking", pThreadWorking);
+    printThread ("Continue - threadKernel", &threadKernel);
+    
+    swapcontext(&pThreadWorking->uContext, &threadKernel.uContext);
+
     
     if (pThreadWorking->select_ret < 0)
     {
@@ -367,8 +371,11 @@ bool __inline__ gthread::Microleep(uint64_t nuTime)
     pThreadWorking->nStartTime = getTimeInMicroSec();
 
 
-    Continue();
+    printThread ("Continue - pThreadWorking", pThreadWorking);
+    printThread ("Continue - threadKernel", &threadKernel);
     
+    swapcontext(&pThreadWorking->uContext, &threadKernel.uContext);
+
     
     return true;
 }
@@ -476,13 +483,13 @@ void Function3 ()
 
 int main (int nArgs, char** ppszArgs)
 {
-    //Kernel.CreateThread ((void (*)())Function, 100, "Thread 1", 0, NULL);
+    Kernel.CreateThread ((void (*)())Function, 100, "Thread 1", 0, NULL);
 
-    //Kernel.CreateThread ((void (*)())Function, 1000, "Thread 2", 0, (void**)20);
+    Kernel.CreateThread ((void (*)())Function, 1000, "Thread 2", 0, (void**)20);
 
-    //Kernel.CreateThread ((void (*)())Function2, 100, "Thread 3", 0, NULL);
+    Kernel.CreateThread ((void (*)())Function2, 100, "Thread 3", 0, NULL);
     
-    Kernel.CreateThread ((void (*)())Function3, 64000,  100, "Thread 4 SELECT", 0, NULL);
+    //Kernel.CreateThread ((void (*)())Function3, 64000,  100, "Thread 4 SELECT", 0, NULL);
     
     Kernel.Start();
 
