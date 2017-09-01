@@ -48,7 +48,9 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/mman.h>
-
+#include <sys/types.h>
+#include <errno.h>
+#include <string.h>
 
 #include <vector>
 
@@ -105,6 +107,8 @@ public:
     
     int select (int nfds, fd_set *readfds, fd_set *writefds,
          fd_set *errorfds, struct timeval *timeout);
+    
+    const char* getFDSETErrorMessage();
     
 private:
 

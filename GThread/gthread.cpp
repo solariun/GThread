@@ -33,8 +33,10 @@
  */
 
 #include "gthread.h"
-#include <stdio.h>
 
+
+extern const char * const sys_errlist[];
+extern const int sys_nerr;
 
 
 #define KERNEL_CONTEXT 0;
@@ -103,10 +105,8 @@ gthread::gthread()
 
 
 
+#define timespec2microseconds(x) (uint64_t) (x.tv_sec * (uint64_t)1000000L + x.tv_nsec / 1000)
 
-inline uint64_t as_microseconds(struct timespec* ts) {
-    return ts->tv_sec * (uint64_t)1000000L + ts->tv_nsec / 1000;
-}
 
 uint64_t gthread::getTimeInMicroSec (void)
 {
@@ -114,7 +114,7 @@ uint64_t gthread::getTimeInMicroSec (void)
 
     clock_gettime(CLOCK_REALTIME, &spec);
 
-    return (as_microseconds(&spec));
+    return (timespec2microseconds(spec));
 }
 
 
@@ -196,7 +196,7 @@ uint64_t gthread::markNextRunningContexts(uint64_t nTick)
     {
         nCurrentTIme = getTimeInMicroSec();
         
-        nTimeFactor = (((*it)->nSleepETA > 0 && (*it)->nSleepETA > nCurrentTIme) ? (((uint64_t)(*it)->nSleepETA - nCurrentTIme) / GTHREAD_TICK_USEC) + 1 : 0) + (*it)->nPriority;
+        nTimeFactor = ((((*it)->nSleepETA > 0 || (*it)->nThreadStatus == GTHREAD_STATUS_SLEEP) && (*it)->nSleepETA > nCurrentTIme) ? (((uint64_t)(*it)->nSleepETA - nCurrentTIme) / GTHREAD_TICK_USEC) + 1 : 0) + (*it)->nPriority;
         
         (*it)->nNextRunningTick = INT_CEILING(nTick, nTimeFactor );
 
@@ -233,7 +233,7 @@ void gthread::Start ()
                 
                  nTime = getTimeInMicroSec();
                 
-                //printf ("\n\tKernel:   nTick: [%u] Next: [%u] diff: [%u] -- Time: [%llu] -SLeep ETA: [%llu] diff: [%llu] \n", nTick, nTick + (nRunningETA -nTick), nRunningETA - nTick, nTime, (*it)->nSleepETA, (*it)->nSleepETA - nTime);
+                printf ("\n\tKernel:   nTick: [%u] Next: [%u] diff: [%u] -- Time: [%llu] -SLeep ETA: [%llu] diff: [%llu] \n", nTick, nTick + (nRunningETA -nTick), nRunningETA - nTick, nTime, (*it)->nSleepETA, (*it)->nSleepETA - nTime);
                 
                 
                 if ((*it)->nThreadStatus == GTHREAD_STATUS_SLEEP && (*it)->nSleepETA <= nTime)
@@ -244,7 +244,7 @@ void gthread::Start ()
                     //printf ("\n\t ELIPSED TIME: [%f] \n", (double) (nTime - (*it)->nStartTime) / 1000000);
                     
                     nTick++;
-                }else if ((*it)->nThreadStatus == GTHREAD_STATUS_SLEEP )
+                }else if ((*it)->nThreadStatus == GTHREAD_STATUS_SELECT)
                 {
                     if ((*it)->nSleepETA <= nTime)
                     {
@@ -299,9 +299,12 @@ void gthread::Start ()
 }
 
 
+#define timeval2microseconds(x) (uint64_t) (x.tv_sec * (uint64_t)1000000L + x.tv_usec / 1000)
+
 
 int gthread::select (int nfds, fd_set *readfds, fd_set *writefds, fd_set *errorfds, struct timeval *timeout)
 {
+    
     verify(pThreadWorking != NULL, "Logic Error, it should have priviously been initilizaed. (%llu)\n", NULL);
     
     verify (timeout != NULL, "timeval not defined.", NULL);
@@ -311,6 +314,8 @@ int gthread::select (int nfds, fd_set *readfds, fd_set *writefds, fd_set *errorf
     pThreadWorking->fdSetList [GTHREAD_FDSET_ERROR]  = errorfds;
     
     pThreadWorking->nThreadStatus = GTHREAD_STATUS_SELECT;
+    
+    pThreadWorking->nSleepETA = getTimeInMicroSec() + timeval2microseconds((*timeout));
     
     Continue();
     
@@ -325,7 +330,6 @@ int gthread::select (int nfds, fd_set *readfds, fd_set *writefds, fd_set *errorf
     }
     
     return pThreadWorking->select_ret;
-    
 }
 
 
@@ -342,8 +346,8 @@ bool gthread::Microleep(uint64_t nuTime)
     pThreadWorking->nStartTime = getTimeInMicroSec();
 
 
-    swapcontext(&pThreadWorking->uContext, &threadKernel.uContext);
-
+    Continue();
+    
     
     return true;
 }
@@ -369,6 +373,13 @@ const uint64_t gthread::getCurrentTick()
     return nTick;
 }
 
+
+
+
+const char* gthread::getFDSETErrorMessage()
+{
+    return strerror(pThreadWorking->Errorno);
+}
 
 
 /*
@@ -403,13 +414,51 @@ void Function2 ()
 }
 
 
+void Function3 ()
+{
+    char chKey;
+    timeval tm;
+    
+    tm.tv_sec = 30;
+    tm.tv_usec = 500;
+    
+    int fdin = fileno(stdin);
+    
+    fd_set fdSetRead;
+    fd_set fdSetError;
+    
+    while (Kernel.Continue())
+    {
+        FD_ZERO (&fdSetError);
+        FD_SET  (fdin, &fdSetError);
+        
+        FD_ZERO (&fdSetRead);
+        FD_SET (fdin, &fdSetRead);
+        
+        if (Kernel.select(fdin, &fdSetRead, NULL, &fdSetError, &tm) != 0)
+        {
+            if (FD_ISSET(fdin, &fdSetError) == true)
+            {
+                printf ("\nFDREAD: ERROR: [%s]\n", Kernel.getFDSETErrorMessage());
+                exit(0);
+            }
+            
+            read(fdin, &chKey, 1);
+            printf ("\tREAD: [%d (%c)]\n", chKey, chKey);
+        }
+    }
+}
+
+
 int main (int nArgs, char** ppszArgs)
 {
-    Kernel.CreateThread ((void (*)())Function, 100, "Thread 1", 0, NULL);
+    //Kernel.CreateThread ((void (*)())Function, 100, "Thread 1", 0, NULL);
 
-    Kernel.CreateThread ((void (*)())Function, 1000, "Thread 2", 0, (void**)20);
+    //Kernel.CreateThread ((void (*)())Function, 1000, "Thread 2", 0, (void**)20);
 
-    Kernel.CreateThread ((void (*)())Function2, 100, "Thread 3", 0, NULL);
+    //Kernel.CreateThread ((void (*)())Function2, 100, "Thread 3", 0, NULL);
+    
+    Kernel.CreateThread ((void (*)())Function3, 64000,  100, "Thread 4 SELECT", 0, NULL);
     
     Kernel.Start();
 
