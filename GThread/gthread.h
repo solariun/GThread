@@ -99,14 +99,13 @@ public:
 
     void Start ();
 
-    bool Microleep(uint64_t nuTime);
+    bool __inline__ Microleep(uint64_t nuTime);
 
-    bool Continue();
+    bool __inline__ Continue();
     
     const uint64_t getCurrentTick();
     
-    int select (int nfds, fd_set *readfds, fd_set *writefds,
-         fd_set *errorfds, struct timeval *timeout);
+    int __volatile__ select (int nfds, fd_set *readfds, fd_set *writefds, fd_set *errorfds, struct timeval *timeout);
     
     const char* getFDSETErrorMessage();
     
@@ -130,7 +129,7 @@ private:
 
     void firstCallFunction (void (*pFunction)(), thread *pThread);
 
-
+    void printThread (const char* pszName, thread* pThread);
 protected:
 
 	

@@ -87,6 +87,24 @@ void gthread::_verify (bool boolExpression, const char* pstrCode, const char* ps
     }
 }
 
+
+
+void gthread::printThread (const char* pszName, thread* pThread)
+{
+    printf ("Thread [%s]\n", pszName);
+    printf ("\tFunction: 0x%X\n", pThread->uContext.uc_mcontext);
+    printf ("\tReturn  : 0x%X\n", pThread->uContext.uc_link);
+    printf ("\tStack   : 0x%X Size: [%u]\n", pThread->uContext.uc_stack.ss_sp, pThread->uContext.uc_stack.ss_size);
+    printf ("\n");
+    printf ("\tName    : 0x%X\n", pThread->pstrThreadName);
+    printf ("\tStatus  : %u\n", pThread->nThreadStatus);
+    printf ("\tETASleep: %llu\n", pThread->nSleepETA);
+    printf ("\tPriority: %u\n", pThread->nPriority);
+    
+    printf ("-------------------\n");
+}
+
+
 void gthread::sortPriorityDescendently(vector<thread*> &vec)
 {
     /* sort with LAMBDA C++ expression */
@@ -144,7 +162,7 @@ void gthread::CreateThread(void (*pFunction)(), uint64_t nStack, uint16_t nPrior
 	
     getcontext(&thContext->uContext);
 
-    thContext->uContext.uc_stack.ss_sp = malloc(nStack); //mmap(0, nStack, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE| MAP_ANON, -1, 0);
+    thContext->uContext.uc_stack.ss_sp = mmap(0, nStack, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE| MAP_ANON, -1, 0);
     
 	thContext->uContext.uc_stack.ss_size = nStack;
     thContext->uContext.uc_stack.ss_flags = 0;
@@ -162,6 +180,8 @@ void gthread::CreateThread(void (*pFunction)(), uint64_t nStack, uint16_t nPrior
 
     //printf ("[%s] Created thread [%s] nice: [%u] Status: [%u ticks]\n", __PRETTY_FUNCTION__, pstrName, nPriority, thContext->nThreadStatus);
 
+    printThread ("CreateThread - thContext", thContext);
+    
     vecThread.push_back (thContext);
 
     /* re-order */
@@ -249,7 +269,8 @@ void gthread::Start ()
                     if ((*it)->nSleepETA <= nTime)
                     {
                         (*it)->nThreadStatus = GTHREAD_STATUS_RUNNING;
-                        (*it)->select_ret    = -1;
+                        (*it)->select_ret    = 0;
+                        (*it)->Errorno       = 0;
                     }
                     else
                     {
@@ -302,7 +323,7 @@ void gthread::Start ()
 #define timeval2microseconds(x) (uint64_t) (x.tv_sec * (uint64_t)1000000L + x.tv_usec / 1000)
 
 
-int gthread::select (int nfds, fd_set *readfds, fd_set *writefds, fd_set *errorfds, struct timeval *timeout)
+int __volatile__ gthread::select (int nfds, fd_set *readfds, fd_set *writefds, fd_set *errorfds, struct timeval *timeout)
 {
     
     verify(pThreadWorking != NULL, "Logic Error, it should have priviously been initilizaed. (%llu)\n", NULL);
@@ -335,7 +356,7 @@ int gthread::select (int nfds, fd_set *readfds, fd_set *writefds, fd_set *errorf
 
 
 
-bool gthread::Microleep(uint64_t nuTime)
+bool __inline__ gthread::Microleep(uint64_t nuTime)
 {
     verify(pThreadWorking != NULL, "Logic Error, it should have priviously been initilizaed. (%llu)\n", NULL);
 
@@ -355,11 +376,14 @@ bool gthread::Microleep(uint64_t nuTime)
 
 
 
-bool gthread::Continue()
+bool __inline__ gthread::Continue()
 {
     verify(pThreadWorking != NULL, "Logic Error, it should have priviously been initilizaed. (%llu)\n", Kernel.getCurrentTick());
     
     printf ("\t->[%s] executing Switching.\n\n", pThreadWorking->pstrThreadName);
+    
+    printThread ("Continue - pThreadWorking", pThreadWorking);
+    printThread ("Continue - threadKernel", &threadKernel);
     
     swapcontext(&pThreadWorking->uContext, &threadKernel.uContext);
     
@@ -419,7 +443,7 @@ void Function3 ()
     char chKey;
     timeval tm;
     
-    tm.tv_sec = 30;
+    tm.tv_sec = 3;
     tm.tv_usec = 500;
     
     int fdin = fileno(stdin);
