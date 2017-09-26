@@ -92,9 +92,9 @@ void gthread::_verify (bool boolExpression, const char* pstrCode, const char* ps
 void gthread::printThread (const char* pszName, thread* pThread)
 {
     printf ("Thread [%s]\n", pszName);
-    printf ("\tFunction: 0x%X\n", pThread->uContext.uc_mcontext);
-    printf ("\tReturn  : 0x%X\n", pThread->uContext.uc_link);
-    printf ("\tStack   : 0x%X Size: [%u]\n", pThread->uContext.uc_stack.ss_sp, pThread->uContext.uc_stack.ss_size);
+    printf ("\tFunction: 0x%p\n", pThread->uContext.uc_mcontext);
+    printf ("\tReturn  : 0x%p\n", pThread->uContext.uc_link);
+    printf ("\tStack   : 0x%p Size: [%lu]\n", pThread->uContext.uc_stack.ss_sp, pThread->uContext.uc_stack.ss_size);
     printf ("\n");
     printf ("\tName    : [%s]\n", pThread->pstrThreadName);
     printf ("\tStatus  : %u\n", pThread->nThreadStatus);
@@ -264,37 +264,6 @@ void gthread::Start ()
                     //printf ("\n\t ELIPSED TIME: [%f] \n", (double) (nTime - (*it)->nStartTime) / 1000000);
                     
                     nTick++;
-                }else if ((*it)->nThreadStatus == GTHREAD_STATUS_SELECT)
-                {
-                    if ((*it)->nSleepETA <= nTime)
-                    {
-                        (*it)->nThreadStatus = GTHREAD_STATUS_RUNNING;
-                        (*it)->select_ret    = 0;
-                        (*it)->Errorno       = 0;
-                    }
-                    else
-                    {
-                        timeval tm;
-                        
-                        tm.tv_sec = 0;
-                        tm.tv_usec = GTHREAD_TICK_USEC;
-                        
-                        int nRet = select ((*it)->nFD,
-                                            (*it)->fdSetList [GTHREAD_FDSET_READ],
-                                            (*it)->fdSetList [GTHREAD_FDSET_WRITE],
-                                            (*it)->fdSetList [GTHREAD_FDSET_ERROR],
-                                           &tm);
-                        
-                        (*it)->Errorno = errno;
-                        
-                        if (nRet > 0)
-                        {
-                            (*it)->nThreadStatus = GTHREAD_STATUS_RUNNING;
-                            (*it)->select_ret    = nRet;
-                        }
-                        
-                        nTick++;
-                    }
                 }
                 
                 if ( (((*it)->nThreadStatus == GTHREAD_STATUS_RUNNING || (*it)->nThreadStatus == GTHREAD_STATUS_INIT)) )
@@ -450,7 +419,7 @@ void Function3 ()
     char chKey;
     timeval tm;
     
-    tm.tv_sec = 3;
+    tm.tv_sec = 0;
     tm.tv_usec = 500;
     
     int fdin = fileno(stdin);
@@ -466,7 +435,7 @@ void Function3 ()
         FD_ZERO (&fdSetRead);
         FD_SET (fdin, &fdSetRead);
         
-        if (Kernel.select(fdin, &fdSetRead, NULL, &fdSetError, &tm) != 0)
+        if (select(fdin, &fdSetRead, NULL, &fdSetError, &tm) != 0)
         {
             if (FD_ISSET(fdin, &fdSetError) == true)
             {
@@ -485,11 +454,11 @@ int main (int nArgs, char** ppszArgs)
 {
     Kernel.CreateThread ((void (*)())Function, 100, "Thread 1", 0, NULL);
 
-    Kernel.CreateThread ((void (*)())Function, 1000, "Thread 2", 0, (void**)20);
+    //Kernel.CreateThread ((void (*)())Function, 1000, "Thread 2", 0, (void**)20);
 
-    Kernel.CreateThread ((void (*)())Function2, 100, "Thread 3", 0, NULL);
+    //Kernel.CreateThread ((void (*)())Function2, 100, "Thread 3", 0, NULL);
     
-    //Kernel.CreateThread ((void (*)())Function3, 64000,  100, "Thread 4 SELECT", 0, NULL);
+    Kernel.CreateThread ((void (*)())Function3, 64000,  100, "Thread 4 SELECT", 0, NULL);
     
     Kernel.Start();
 
